@@ -8,6 +8,7 @@ import com.alerthub.loaderservice.loader.GitHubCsvLoader;
 import com.alerthub.loaderservice.mapper.GitHubCsvToEntityMapper;
 import com.alerthub.loaderservice.model.GitHubCsvRecord;
 import com.alerthub.loaderservice.repository.PlatformInformationRepository;
+import com.alerthub.loaderservice.service.FileImportTrackerService;
 import com.alerthub.loaderservice.util.RemoteCsvDownloader;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,11 +27,20 @@ public class GitHubCsvImportService {
     @Autowired
     private PlatformInformationRepository repository;
     
+    @Autowired
+    private FileImportTrackerService tracker;
+    
     @Value("${alerthub.import.github.api}")
     private String githubRemoteBaseUrl;
     
-    public void importCsv(File file) {
+    private static final String PLATFORM = "GitHub";
+    
+    public void importCsv(File file, String fileName) {
         try {
+        	if (tracker.isFileAlreadyImported(fileName, PLATFORM)) {
+        	    System.out.println("⏩ Skipped (already imported): " + fileName);
+        	    return;
+        	}
             System.out.println("📂 Loading GitHub file: " + file.getAbsolutePath());
 
             List<GitHubCsvRecord> records = loader.load(file);
@@ -43,7 +53,8 @@ public class GitHubCsvImportService {
             System.out.println("🟢 Entities ready to insert: " + entities.size());
 
             repository.saveAll(entities);
-
+            tracker.markFileAsImported(fileName, PLATFORM);
+            
             System.out.println("✅ Imported " + entities.size() + " GitHub records.");
         } catch (Exception e) {
             System.err.println("❌ Failed to import GitHub CSV: " + e.getMessage());
@@ -64,7 +75,7 @@ public class GitHubCsvImportService {
                     if (fileName.endsWith(".csv")) {
                     	String downloadUrl = file.get("download_url").asText();
                         File tempFile = RemoteCsvDownloader.downloadCsv(downloadUrl);
-                        importCsv(tempFile);
+                        importCsv(tempFile,fileName);
                     }
                 }
             }

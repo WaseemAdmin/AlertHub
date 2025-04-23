@@ -14,23 +14,26 @@ public class GitHubCsvImportController {
 
     @Autowired
     private GitHubCsvImportService importService;
-    
+
     @Autowired
     private GitHubImportProperties config;
 
+    //Import a local GitHub file manually
     @PostMapping
     public String importGitHubData(@RequestBody GitHubFileRequest request) {
-        String fullPath = config.getBasePath() + request.getFileName();
+        String fileName = request.getFileName();
+        String fullPath = config.getBasePath() + fileName;
         File file = new File(fullPath);
 
         if (!file.exists()) {
             return "❌ File not found: " + file.getAbsolutePath();
         }
 
-        importService.importCsv(file);
+        importService.importCsv(file, fileName); // ✅ fixed to pass filename
         return "✅ Import started for file: " + file.getAbsolutePath();
     }
-    
+
+    // GitHub auto-import for all CSVs
     @PostMapping("/remote/all")
     public String importAllFromRemote() {
         importService.downloadAndImportAllCsvs();

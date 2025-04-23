@@ -5,6 +5,7 @@ import com.alerthub.loaderservice.mapper.ClickUpCsvToEntityMapper;
 import com.alerthub.loaderservice.model.ClickUpCsvRecord;
 import com.alerthub.loaderservice.entity.PlatformInformation;
 import com.alerthub.loaderservice.repository.PlatformInformationRepository;
+import com.alerthub.loaderservice.service.FileImportTrackerService;
 import com.alerthub.loaderservice.util.RemoteCsvDownloader;
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -26,11 +27,21 @@ public class ClickUpCsvImportService {
     @Autowired
     private PlatformInformationRepository repository;
     
+    @Autowired
+    private FileImportTrackerService tracker;
+    
     @Value("${alerthub.import.clickup.api}")
     private String clickupRemoteBaseUrl;
 
-    public void importCsv(File file) {
+    private static final String PLATFORM = "ClickUp";
+    
+    public void importCsv(File file, String fileName) {
         try {
+        	if (tracker.isFileAlreadyImported(fileName, PLATFORM)) {
+                System.out.println("⏩ Skipped (already imported): " + fileName);
+                return;
+            }
+        	
             System.out.println("📂 Loading file: " + file.getAbsolutePath());
 
             List<ClickUpCsvRecord> records = csvLoader.load(file);
@@ -43,7 +54,7 @@ public class ClickUpCsvImportService {
             System.out.println("🟢 Entities ready to insert: " + entities.size());
 
             repository.saveAll(entities);
-
+            tracker.markFileAsImported(fileName, PLATFORM);
             System.out.println("✅ Imported " + entities.size() + " ClickUp records.");
         } catch (Exception e) {
             System.err.println("❌ Failed to import ClickUp CSV: " + e.getMessage());
@@ -63,7 +74,7 @@ public class ClickUpCsvImportService {
                     if (fileName.endsWith(".csv")) {
                         String downloadUrl = file.get("download_url").asText();
                         File tempFile = RemoteCsvDownloader.downloadCsv(downloadUrl);
-                        importCsv(tempFile);
+                        importCsv(tempFile, fileName);
                     }
                 }
             }

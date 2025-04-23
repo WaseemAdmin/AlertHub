@@ -14,23 +14,26 @@ public class ClickUpCsvImportController {
 
     @Autowired
     private ClickUpCsvImportService importService;
-    
+
     @Autowired
     private ClickUpImportProperties config;
 
+    // Import from local CSV
     @PostMapping
     public String importClickUpData(@RequestBody ClickUpFileRequest request) {
-    	String fullPath = config.getBasePath() + request.getFileName();
+        String fileName = request.getFileName();
+        String fullPath = config.getBasePath() + fileName;
         File file = new File(fullPath);
 
         if (!file.exists()) {
-            return "❌ File not found: " +  file.getAbsolutePath();
+            return "❌ File not found: " + file.getAbsolutePath();
         }
 
-        importService.importCsv(file);
+        importService.importCsv(file, fileName);  // ✅ updated to pass fileName
         return "✅ Import started for file: " + file.getAbsolutePath();
     }
-    
+
+    // Import all remote CSVs from GitHub
     @PostMapping("/remote/all")
     public String importRemoteClickUpData() {
         importService.downloadAndImportAllCsvs();
