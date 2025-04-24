@@ -14,24 +14,35 @@ import com.alerthub.loaderservice.loader.JiraCsvLoader;
 import com.alerthub.loaderservice.mapper.JiraCsvToEntityMapper;
 import com.alerthub.loaderservice.model.JiraCsvRecord;
 import com.alerthub.loaderservice.repository.PlatformInformationRepository;
+import com.alerthub.loaderservice.service.FileImportTrackerService;
 import com.alerthub.loaderservice.util.RemoteCsvDownloader;
 import com.fasterxml.jackson.databind.JsonNode;
 
 @Service
 public class JiraCsvImportService {
 
-	  @Autowired
+	    @Autowired
 	    private JiraCsvLoader loader;
 
 	    @Autowired
 	    private PlatformInformationRepository repository;
 	    
+	    @Autowired
+	    private FileImportTrackerService tracker;
+	    
 	    @Value("${alerthub.import.jira.api}")
 	    private String jiraRemoteBaseUrl;
+	    
+	    private static final String PLATFORM = "Jira";
 
-	    public void importCsv(File file) {
+	    public void importCsv(File file, String fileName) {
 	        try {
-	            System.out.println("📂 Loading GitHub file: " + file.getAbsolutePath());
+	        	if (tracker.isFileAlreadyImported(fileName, PLATFORM)) {
+	                System.out.println("⏩ Skipped (already imported): " + fileName);
+	                return;
+	            }
+	        	
+	            System.out.println("📂 Loading Jira file: " + file.getAbsolutePath());
 
 	            List<JiraCsvRecord> records = loader.load(file);
 	            System.out.println("🟡 Jira records parsed: " + records.size());
@@ -43,7 +54,8 @@ public class JiraCsvImportService {
 	            System.out.println("🟢 Entities ready to insert: " + entities.size());
 
 	            repository.saveAll(entities);
-
+	            tracker.markFileAsImported(fileName, PLATFORM);
+	            
 	            System.out.println("✅ Imported " + entities.size() + " Jira records.");
 	        } catch (Exception e) {
 	            System.err.println("❌ Failed to import Jira CSV: " + e.getMessage());
@@ -63,7 +75,7 @@ public class JiraCsvImportService {
 	                    if (fileName.endsWith(".csv")) {
 	                        String downloadUrl = file.get("download_url").asText();
 	                        File tempFile = RemoteCsvDownloader.downloadCsv(downloadUrl);
-	                        importCsv(tempFile);
+	                        importCsv(tempFile, fileName);
 	                    }
 	                }
 	            }
