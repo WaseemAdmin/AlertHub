@@ -23,7 +23,7 @@ public class PlatformInformationController {
         return service.savePlatformInfo(info);
     }
 
-    @GetMapping
+    @GetMapping("/all")
     public List<PlatformInformation> getAll() {
         return service.getAllPlatformInfo();
     }
